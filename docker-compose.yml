@@ -10,9 +10,9 @@ services:
     volumes:
       - ./downloads:/app/downloads
 
-  pot_provider:
-    image: ghcr.io/bol-van/pot-provider:latest
+pot_provider:
+    image: ghcr.io/jim60105/yt-dlp:pot
     container_name: pot_provider
     restart: always
     ports:
-      - "8080:8080" # Внутренний порт для генерации токенов
+      - "8080:8080"
