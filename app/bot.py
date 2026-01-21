@@ -2,6 +2,7 @@ import os
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
+from dotenv import load_dotenv  # Добавь эту строку
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from downloader import get_video_info, download_video
 
