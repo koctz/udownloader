@@ -16,17 +16,27 @@ def get_video_info(url):
                 seen_res.add(res)
         return info.get('title', 'Video'), sorted(formats, key=lambda x: x['res'], reverse=True)
 
-async def download_video(url, format_id):
-    output_filename = f"downloads/%(title)s_{format_id}.%(ext)s"
+    async def download_video(url, format_id):
+    output_filename = os.path.join("downloads", f"%(title)s_{format_id}.%(ext)s")
+    
     ydl_opts = {
-        'format': format_id,
+        'format': f"{format_id}+bestaudio/best",
         'outtmpl': output_filename,
-        'quiet': True,
+        'merge_output_format': 'mp4',
+        # Настройка использования прокси-генератора токенов
+        'extractor_args': {
+            'youtube': {
+                'po_token': ['web+http://pot_provider:8080/token'], 
+            }
+        },
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
     }
     
     def sync_download():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             return ydl.prepare_filename(info)
+
+    return await asyncio.to_thread(sync_download)
 
     return await asyncio.to_thread(sync_download)
