@@ -21,6 +21,9 @@ async def download_video(url, format_id):
         'format': f"{format_id}+bestaudio/best",
         'outtmpl': output_filename,
         'merge_output_format': 'mp4',
+        'retries': 10,              # Пробовать 10 раз, если фрагмент не найден
+        'fragment_retries': 10,     # Пробовать фрагмент 10 раз
+        'retry_sleep_functions': {'fragment': lambda n: 5}, # Спать 5 сек перед повтором
         'extractor_args': {
             'youtube': {
                 'po_token': ['web+http://pot_provider:8080/token'],
