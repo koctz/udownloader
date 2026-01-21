@@ -28,30 +28,20 @@ async def check_subscription(user_id):
 async def cmd_start(message: types.Message):
     await message.answer(f"Привет! Чтобы пользоваться ботом, подпишись на канал: {CHANNEL_URL}\n\nЗатем просто пришли мне ссылку на YouTube видео!")
 
-@dp.message(F.text.contains("youtube.com") | F.text.contains("youtu.be"))
-async def handle_link(message: types.Message):
-    if not await check_subscription(message.from_user.id):
-        return await message.answer(f"❌ Ошибка! Сначала подпишитесь на канал: {CHANNEL_URL}")
-
-    wait_msg = await message.answer("⏳ Анализирую видео, подождите...")
-    
-    try:
-        title, formats = get_video_info(message.text)
-        builder = InlineKeyboardBuilder()
-        
-        # Создаем кнопки качества (ограничим 6-ю самыми популярными)
-        for f in formats[:6]:
-            builder.button(
-                text=f"{f['res']}p ({f['ext']})", 
-                callback_data=f"dl|{f['id']}|{message.text}"
-            )
-        builder.adjust(2)
-        
-        await wait_msg.delete()
-        await message.answer(f"🎬 <b>{title}</b>\n\nВыбери желаемое качество:", 
-                           reply_markup=builder.as_markup(), parse_mode="HTML")
-    except Exception as e:
-        await message.answer(f"❌ Произошла ошибка: {str(e)}")
+@dp.message()
+async def handle_message(message: types.Message):
+    if "youtube.com" in message.text or "youtu.be" in message.text:
+        await message.answer("Обрабатываю ссылку, подождите...")
+        try:
+            # ТУТ ДОБАВЛЕН AWAIT
+            info = await get_video_info(message.text)
+            title = info.get('title', 'Video')
+            formats = info.get('formats', [])
+            
+            # Далее ваш код создания кнопок...
+            await message.answer(f"Что скачать из '{title}'?", reply_markup=keyboard)
+        except Exception as e:
+            await message.answer(f"Ошибка: {e}")
 
 @dp.callback_query(F.data.startswith("dl|"))
 async def callbacks_download(callback: types.CallbackQuery):
