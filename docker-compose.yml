@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  yt_bot:
+    build: .
+    container_name: youtube_downloader_bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./downloads:/app/downloads
