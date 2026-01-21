@@ -2,63 +2,71 @@ import os
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from dotenv import load_dotenv  # Добавь эту строку
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from downloader import get_video_info, download_video
+from dotenv import load_dotenv
 
-# Загрузка конфигов из .env
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-CHANNEL_URL = os.getenv("CHANNEL_URL")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Проверка подписки
-async def check_subscription(user_id):
-    try:
-        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        return member.status != 'left'
-    except Exception:
-        return False
-
 @dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    await message.answer(f"Привет! Чтобы пользоваться ботом, подпишись на канал: {CHANNEL_URL}\n\nЗатем просто пришли мне ссылку на YouTube видео!")
+async def start(message: types.Message):
+    await message.answer("Привет! Пришли мне ссылку на YouTube видео, и я помогу его скачать.")
 
-@dp.message()
-async def handle_message(message: types.Message):
-    if "youtube.com" in message.text or "youtu.be" in message.text:
-        await message.answer("Обрабатываю ссылку, подождите...")
-        try:
-            # ТУТ ДОБАВЛЕН AWAIT
-            info = await get_video_info(message.text)
-            title = info.get('title', 'Video')
-            formats = info.get('formats', [])
-            
-            # Далее ваш код создания кнопок...
-            await message.answer(f"Что скачать из '{title}'?", reply_markup=keyboard)
-        except Exception as e:
-            await message.answer(f"Ошибка: {e}")
+@dp.message(F.text.contains("youtube.com") | F.text.contains("youtu.be"))
+async def handle_url(message: types.Message):
+    url = message.text
+    await message.answer("🔍 Получаю информацию о видео...")
+    
+    try:
+        info = await get_video_info(url)
+        title = info.get('title', 'Видео')
+        
+        # Собираем кнопки для выбора качества (только видео с аудио)
+        builder = InlineKeyboardBuilder()
+        
+        # Берем несколько популярных форматов
+        formats = [f for f in info.get('formats', []) if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
+        
+        for f in formats[:5]: # Ограничим до 5 кнопок
+            res = f.get('height', 'unknown')
+            ext = f.get('ext', 'mp4')
+            f_id = f.get('format_id')
+            builder.button(
+                text=f"{res}p .{ext}", 
+                callback_data=f"dl|{f_id}|{url}"
+            )
+        
+        builder.adjust(2)
+        await message.answer(f"🎬 {title}\n\nВыберите качество:", reply_markup=builder.as_markup())
+        
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при получении инфо: {e}")
 
 @dp.callback_query(F.data.startswith("dl|"))
-async def callbacks_download(callback: types.CallbackQuery):
+async def process_download(callback: types.Callback_query):
     _, format_id, url = callback.data.split("|")
-    await callback.message.edit_text("🚀 Начинаю загрузку... Это может занять время.")
+    await callback.message.edit_text("⏳ Начинаю скачивание... это может занять время.")
     
     try:
         file_path = await download_video(url, format_id)
-        video = types.FSInputFile(file_path)
-        await callback.message.answer_video(video, caption="Ваше видео готово! ✅")
-        os.remove(file_path) # Удаляем файл после отправки
-        await callback.message.delete()
+        
+        if os.path.exists(file_path):
+            await callback.message.answer("✅ Скачивание завершено! Отправляю файл...")
+            video_file = types.FSInputFile(file_path)
+            await bot.send_video(callback.message.chat.id, video_file)
+            # Опционально: удалить файл после отправки
+            # os.remove(file_path)
+        else:
+            await callback.message.answer("❌ Файл не найден после скачивания.")
+            
     except Exception as e:
-        await callback.message.answer(f"❌ Ошибка при скачивании: {str(e)}")
+        await callback.message.answer(f"❌ Ошибка при скачивании: {e}")
 
 async def main():
-    print("Бот успешно запущен и готов к работе!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
