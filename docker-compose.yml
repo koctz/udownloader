@@ -11,7 +11,7 @@ services:
       - ./downloads:/app/downloads
 
   pot_provider:
-    image: ghcr.io/jim60105/pot-provider:latest
+    image: jixun/pot-provider:latest
     container_name: pot_provider
     restart: always
     ports:
